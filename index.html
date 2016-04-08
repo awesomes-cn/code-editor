@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <link rel="stylesheet" type="text/css" href="main.css">
+  <link rel="stylesheet" type="text/css" href="codemirror/codemirror.css">
+</head>
+<body>
+  <div class="codeditor" id="editor">
+    <div class="toolbar unselect">
+      <button v-on:click="preview()">Run</button>
+    </div>
+
+    <div class="p1 unselect" v-bind:style="{width: p1.w, height: p1.h}">
+      <textarea id="code-html"></textarea>
+      <span class="online-label">HTML</span>
+    </div>
+
+    <div class="splitx unselect" v-on:mousedown="moveX($event, p1, p2)" v-bind:style="{height: p1.h}"></div>
+
+    <div class="p2 unselect" v-bind:style="{width: p2.w, height: p1.h}">
+      <textarea id="code-js"></textarea>
+      <span class="online-label">JavaScript</span>
+    </div>
+
+    <div class="splitx unselect" v-on:mousedown="moveX($event, p2, p3)" v-bind:style="{height: p1.h}"></div>
+
+    <div class="p3 unselect" v-bind:style="{width: p3.w, height: p1.h}">
+      <textarea id="code-css"></textarea>
+      <span class="online-label">CSS</span>
+    </div>
+    <div class="clear"></div>
+    <div class="splity unselect" v-on:mousedown="moveY($event)"></div>
+    <div class="p4 unselect" v-bind:style="{height: p4.h}">
+      <iframe class="code-preview" id="preview"></iframe>
+      <div class="window-cover"></div>
+    </div>
+  </div>
+</body>
+</html>
+
+<script src="http://libs.baidu.com/jquery/1.9.0/jquery.min.js"></script>
+
+<script src="codemirror/codemirror.js"></script>
+<script src="codemirror/addon/edit/closetag.js"></script>
+<script src="codemirror/addon/fold/xml-fold.js"></script>
+<script src="codemirror/mode/javascript/javascript.js"></script>
+<script src="codemirror/mode/xml/xml.js"></script>
+<script src="codemirror/mode/css/css.js"></script>
+
+<script src="vue.js"></script>
+<script type="text/javascript">
+  var editorVue,htmlCodeMirror, jsCodeMirror, cssCodeMirror;
+  
+  $(function(){
+    editorVue = initEditor('#editor')
+   
+
+    $('body').mouseup(function(){
+      $('body').unbind('mousemove')
+    })
+
+    initCodeMirror()
+  })
+
+  
+
+  function initEditor(id){
+    var editor = new Vue({
+      el: id,
+      data: {
+        p1: {w: 0, h: 100, ow: 0, oh: 0},
+        p2: {w: 0, h: 100, ow: 0},
+        p3: {w: 0, h: 100, ow: 0},
+        p4: {h: 100, oh: 0},
+        ox: 0,
+        oy: 0
+      }
+    })
+    
+    // 初始化
+    var basew = parseInt($(id).width() / 3)
+    var baseh = parseInt(($(id).height() - 40) * 0.4)
+    editor.p1.w = basew + 'px'
+    editor.p1.h = baseh + 'px'
+    editor.p2.w = basew + 'px'
+    editor.p3.w = ($(id).width() - basew * 2 - 5 * 2) + 'px'
+    editor.p4.h = (($(id).height() - 40) - baseh - 5) + 'px'
+
+
+    
+    // 横向移动
+    editor.moveX = function(e, pleft, pright){
+      editor.ox = e.clientX
+      pleft.ow = pleft.w
+      pright.ow = pright.w
+      $('body').mousemove(function(me){
+        var diff = me.clientX - editor.ox
+        var leftw = parseInt(pleft.ow) + diff
+        var rightw = parseInt(pright.ow) - diff
+        if (leftw <= 50 || rightw <= 50) {return}
+        pleft.w = leftw + 'px'
+        pright.w = rightw  + 'px'
+      })
+    }
+
+    // 纵向移动
+    editor.moveY = function(e){
+      var ptop = editor.p1
+      var pbottom = editor.p4
+
+      editor.oy = e.clientY
+      ptop.oh = ptop.h
+      pbottom.oh = pbottom.h
+      $('body').mousemove(function(me){
+        var diff = me.clientY - editor.oy
+        var toph = parseInt(ptop.oh) + diff
+        var bottomh = parseInt(pbottom.oh) - diff
+        if (toph <= 50 || bottomh <= 50) {return}
+        ptop.h = toph + 'px'
+        pbottom.h = bottomh + 'px'
+      })
+    }
+     
+    // 预览
+    editor.preview = function(){
+      run_code()
+    }
+
+
+
+
+    return editor
+  }
+
+  function initCodeMirror(){
+    htmlCodeMirror =  AddCodeMirror('#code-html', 'text/html') 
+    jsCodeMirror = AddCodeMirror('#code-js', 'javascript')
+    cssCodeMirror =  AddCodeMirror('#code-css', 'css')
+
+    init_code()
+  }
+
+  function AddCodeMirror(textareaId, mode){
+    return  CodeMirror.fromTextArea($(textareaId)[0],{
+      //lineNumbers: true,
+      mode: mode,
+      matchBrackets: true,
+      lineWrapping: true,
+      autoCloseTags: true
+    })
+  }
+
+
+  //- 初始化编辑器代码
+  function init_code(){
+    var _html =  "<!DOCTYPE html>\n\
+<html>\n\
+  <head>\n\
+    <meta charset='utf-8' \/> \n\
+  <\/head>\n\
+  <body>\n\
+    \n\
+  <\/body>\n\
+<\/html>"; 
+    
+    setTimeout(function(){
+      htmlCodeMirror.setValue(_html);
+    }, 1)
+  }
+
+  //- 运行
+  function run_code(){
+    var shtml = htmlCodeMirror.getValue()
+    var sjs = jsCodeMirror.getValue()
+    var scss = cssCodeMirror.getValue()
+
+    var previewFrame = $('#preview')[0];
+    var preview =  previewFrame.contentDocument ||  previewFrame.contentWindow.document;
+
+    var _js = "<script type='text/javascript'>" + sjs + "<\/script>";
+    var _css = "<style>" + scss + "</style>";
+    var _html = shtml.replace(/(\s+)(<\/head>)/,'$1  ' + _js + _css+'$1$2');
+    preview.open();
+    preview.write(_html); 
+    preview.close();
+
+  }
+
+
+
+</script>
+
+ 
